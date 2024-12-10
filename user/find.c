@@ -8,6 +8,27 @@
 
 #define BUF_SIZE 1000
 
+int compare_file_name(char* path, char* file_name)
+{
+    uint path_len = strlen(path);
+    uint file_name_len = strlen(file_name);
+
+    if (file_name_len > path_len) {
+        return 0;
+    }
+
+    char* pptr = path + path_len - file_name_len;
+    char* fptr = file_name;
+    while (*pptr == *fptr) {
+        if (*pptr == '\0') {
+            return 1;
+        }
+        ++pptr;
+        ++fptr;
+    }
+    return 0;
+}
+
 char* format_path(char* path, char* file_name)
 {
     static char buf[BUF_SIZE];
@@ -25,7 +46,7 @@ char* format_path(char* path, char* file_name)
     return buf;
 }
 
-int search_dir(char* path, char* file_name)
+int search(char* path, char* file_name)
 {
     struct stat st;
     int fd;
@@ -71,16 +92,10 @@ int search_dir(char* path, char* file_name)
                 return -1;
             }
 
-            char* full_path = format_path(path, dirent_arr[i].name);
-
-            if (strcmp(file_name, dirent_arr[i].name) == 0) { /* when file name match */
-                fprintf(1, "%s\n", full_path);
-            }
-
-            int recur_res;
+            char* next = format_path(path, dirent_arr[i].name);
             char call_buf[BUF_SIZE];
-            strcpy(call_buf, full_path);
-            if ((recur_res = search_dir(call_buf, file_name)) < 0) {
+            strcpy(call_buf, next);
+            if (search(call_buf, file_name) < 0) {
                 free(buf);
                 close(fd);
                 return -1;
@@ -89,6 +104,10 @@ int search_dir(char* path, char* file_name)
         free(buf);
         close(fd);
         return 0;
+    } else if (st.type == T_FILE) {
+        if (compare_file_name(path, file_name)) { /* when file name match */
+            fprintf(1, "%s\n", path);
+        }
     }
 
     close(fd);
@@ -104,7 +123,7 @@ int main(int argc, char* argv[])
         exit(0);
     }
 
-    res = search_dir(argv[1], argv[2]);
+    res = search(argv[1], argv[2]);
     if (res < 0) {
         fprintf(2, "find failed\n");
         exit(1);
